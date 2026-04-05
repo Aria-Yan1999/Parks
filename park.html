@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>城市公园定位助手</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --card: #ffffff;
+      --text: #1f2a37;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --success: #0f766e;
+      --danger: #dc2626;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+      background:
+        radial-gradient(circle at 20% 0%, #eaf1ff 0%, transparent 40%),
+        radial-gradient(circle at 90% 10%, #e5fff7 0%, transparent 35%),
+        var(--bg);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .app {
+      width: min(760px, 100%);
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px 24px;
+      animation: fadeIn 0.45s ease;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .title {
+      margin: 0 0 8px;
+      font-size: clamp(22px, 3vw, 28px);
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-align: center;
+    }
+
+    .subtitle {
+      margin: 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .actions {
+      margin: 14px 0 18px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .search-wrap {
+      margin-top: 14px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .search-input {
+      flex: 1;
+      border: 1px solid #dbe5f5;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .search-input:focus {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.25);
+    }
+
+    .search-btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 0 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      background: #1d4ed8;
+      cursor: pointer;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 11px 20px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), #3b82f6);
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.75;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .status {
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .status.loading::before {
+      content: "";
+      width: 16px;
+      height: 16px;
+      border: 2px solid #cfe0ff;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .status.error {
+      color: var(--danger);
+      font-weight: 500;
+    }
+
+    .city-wrap {
+      margin-top: 8px;
+      padding: 18px 16px;
+      border-radius: 12px;
+      background: #f8fbff;
+      border: 1px solid #e6eefc;
+      text-align: center;
+    }
+
+    .city-label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .city-name {
+      margin: 6px 0 0;
+      font-size: clamp(24px, 4vw, 34px);
+      font-weight: 700;
+      color: var(--success);
+      letter-spacing: 1px;
+    }
+
+    .list-title {
+      margin: 20px 0 10px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .park-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 10px;
+    }
+
+    .park-item {
+      background: #ffffff;
+      border: 1px solid #ebeff6;
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.04);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      animation: slideUp 0.28s ease both;
+      cursor: pointer;
+    }
+
+    .park-item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .park-name {
+      font-size: 15px;
+      font-weight: 500;
+      color: #0f172a;
+      flex: 1;
+    }
+
+    .checkin-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      background: #2563eb;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .checkin-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
+    }
+
+    .checkin-btn.checked {
+      background: #16a34a;
+      box-shadow: 0 4px 10px rgba(22, 163, 74, 0.2);
+    }
+
+    .checkin-btn.pulse {
+      animation: checkinPulse 0.25s ease;
+    }
+
+    .park-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
+    }
+
+    .empty {
+      color: var(--muted);
+      background: #fafafa;
+      border-style: dashed;
+      text-align: center;
+      cursor: default;
+    }
+
+    .detail-card {
+      margin-top: 14px;
+      border: 1px solid #e8edf7;
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+      overflow: hidden;
+      animation: fadeIn 0.25s ease;
+    }
+
+    .detail-image {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      background: #f1f5f9;
+      border-bottom: 1px solid #eef2f7;
+    }
+
+    .detail-body {
+      padding: 14px;
+    }
+
+    .detail-title {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .detail-meta {
+      margin: 6px 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .nav-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .nav-btn {
+      text-decoration: none;
+      font-size: 13px;
+      line-height: 1;
+      padding: 9px 12px;
+      border: 1px solid #d6e2ff;
+      border-radius: 999px;
+      color: #1e3a8a;
+      background: #f4f8ff;
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn:hover {
+      background: #e8f0ff;
+      transform: translateY(-1px);
+    }
+
+    .tip {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .top-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .back-btn {
+      border: 1px solid #d5deef;
+      background: #fff;
+      color: #1f2937;
+      border-radius: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .route-list {
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .route-item {
+      background: #f8fbff;
+      border: 1px solid #e4ecfc;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+
+    .route-item strong {
+      color: #0f172a;
+      margin-right: 6px;
+    }
+
+    .photo-grid {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .photo-link {
+      display: block;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+      background: #f8fafc;
+      text-decoration: none;
+    }
+
+    .photo-link img {
+      width: 100%;
+      height: 110px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .photo-empty {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .stats-card {
+      margin-top: 12px;
+      border: 1px solid #e5ecfa;
+      border-radius: 12px;
+      background: #f8fbff;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .stats-item {
+      background: #fff;
+      border: 1px solid #e8edf7;
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .stats-label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .stats-value {
+      margin: 4px 0 0;
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes checkinPulse {
+      from { transform: scale(0.95); }
+      to { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section id="listPage" class="page active">
+      <h1 class="title">根据定位显示城市公园列表</h1>
+      <p class="subtitle">纯前端单页应用（HTML + CSS + JavaScript）</p>
+
+      <div class="search-wrap">
+        <input id="searchInput" class="search-input" type="text" placeholder="搜索城市或公园名称" />
+        <button id="searchBtn" class="search-btn" type="button">搜索</button>
+      </div>
+
+      <div class="actions">
+        <button id="locateBtn" class="btn" type="button">获取当前位置</button>
+      </div>
+
+      <div id="status" class="status" aria-live="polite"></div>
+
+      <section class="city-wrap" aria-label="当前城市信息">
+        <p class="city-label">当前城市</p>
+        <p id="cityName" class="city-name">未获取</p>
+      </section>
+
+      <section class="stats-card" aria-label="打卡统计">
+        <div class="stats-item">
+          <p class="stats-label">已打卡</p>
+          <p id="checkedCount" class="stats-value">0</p>
+        </div>
+        <div class="stats-item">
+          <p class="stats-label">总公园</p>
+          <p id="totalCount" class="stats-value">0</p>
+        </div>
+        <div class="stats-item">
+          <p class="stats-label">完成率</p>
+          <p id="rateCount" class="stats-value">0%</p>
+        </div>
+      </section>
+
+      <h2 id="listTitle" class="list-title">公园列表</h2>
+      <ul id="parkList" class="park-list">
+        <li class="park-item empty">请先点击“获取当前位置”</li>
+      </ul>
+    </section>
+
+    <section id="detailPage" class="page" aria-label="公园详情页">
+      <div class="top-row">
+        <button id="backBtn" class="back-btn" type="button">返回列表</button>
+        <p class="subtitle">公园详情与路线摘要</p>
+      </div>
+      <section class="detail-card">
+        <img id="detailImage" class="detail-image" alt="公园照片" />
+        <div class="detail-body">
+          <h3 id="detailTitle" class="detail-title">请选择公园</h3>
+          <p id="detailMeta" class="detail-meta">点击上方公园可查看详情与导航</p>
+          <div id="navActions" class="nav-actions"></div>
+          <div id="routeSummary" class="route-list"></div>
+          <h4 class="list-title" style="margin-top: 16px;">小红书相关图片</h4>
+          <div id="xhsGallery" class="photo-grid"></div>
+          <div id="xhsEmpty" class="photo-empty"></div>
+          <p class="tip">受平台接口和跨域限制，无法稳定直接抓取小红书用户图片；已提供小红书搜索入口。</p>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    // 你提供的高德 Web 服务 Key（演示先写入前端）
+    const AMAP_KEY = "7a69eff0396b1dea0ab1eee5737e0f49";
+
+    // 本地模拟数据：作为接口失败时兜底
+    const fallbackParkData = {
+      "北京": ["颐和园", "天坛公园", "奥林匹克森林公园"],
+      "上海": ["世纪公园", "共青森林公园"],
+      "深圳": ["莲花山公园", "深圳湾公园"]
+    };
+
+    const locateBtn = document.getElementById("locateBtn");
+    const searchInputEl = document.getElementById("searchInput");
+    const searchBtnEl = document.getElementById("searchBtn");
+    const listTitleEl = document.getElementById("listTitle");
+    const statusEl = document.getElementById("status");
+    const cityNameEl = document.getElementById("cityName");
+    const parkListEl = document.getElementById("parkList");
+    const listPageEl = document.getElementById("listPage");
+    const detailPageEl = document.getElementById("detailPage");
+    const backBtnEl = document.getElementById("backBtn");
+    const detailImageEl = document.getElementById("detailImage");
+    const detailTitleEl = document.getElementById("detailTitle");
+    const detailMetaEl = document.getElementById("detailMeta");
+    const navActionsEl = document.getElementById("navActions");
+    const routeSummaryEl = document.getElementById("routeSummary");
+    const xhsGalleryEl = document.getElementById("xhsGallery");
+    const xhsEmptyEl = document.getElementById("xhsEmpty");
+    const checkedCountEl = document.getElementById("checkedCount");
+    const totalCountEl = document.getElementById("totalCount");
+    const rateCountEl = document.getElementById("rateCount");
+    let lastCoords = null;
+    let currentCityName = "未知城市";
+    let currentCityDisplayName = "未获取";
+    const photoCacheKey = "park_photo_cache_v1";
+    const xhsCacheKey = "park_xhs_cache_v1";
+    const checkinStorageKey = "park_checkin_records_v1";
+    let currentCityCheckinKey = "";
+    let currentParkItems = [];
+    let defaultParkItems = [];
+    let checkinRecords = readCache(checkinStorageKey);
+    let searchDebounceTimer = null;
+    let searchRequestId = 0;
+
+    function showPage(name) {
+      listPageEl.classList.toggle("active", name === "list");
+      detailPageEl.classList.toggle("active", name === "detail");
+    }
+
+    function setStatus(type, message) {
+      statusEl.className = "status";
+      if (type) statusEl.classList.add(type);
+      statusEl.textContent = message || "";
+    }
+
+    function readCache(key) {
+      try {
+        return JSON.parse(localStorage.getItem(key) || "{}");
+      } catch (_err) {
+        return {};
+      }
+    }
+
+    function writeCache(key, data) {
+      try {
+        localStorage.setItem(key, JSON.stringify(data));
+      } catch (_err) {
+        // Ignore quota or browser privacy restrictions.
+      }
+    }
+
+    function normalizeCityKey(rawCity) {
+      if (!rawCity) return "";
+      return rawCity
+        .replace(/市|地区|自治州|盟/g, "")
+        .replace(/\s/g, "")
+        .trim();
+    }
+
+    function toCityStorageKey(cityName) {
+      return normalizeCityKey(cityName).toLowerCase() || "unknown";
+    }
+
+    function searchCities(keyword) {
+      if (!keyword) return [];
+      return Object.keys(fallbackParkData).filter((city) => city.includes(keyword));
+    }
+
+    function searchParks(keyword) {
+      if (!keyword) return [];
+      const results = [];
+      Object.keys(fallbackParkData).forEach((city) => {
+        const parks = fallbackParkData[city] || [];
+        parks.forEach((name) => {
+          if (name.includes(keyword)) {
+            results.push({
+              id: `${city}-${name}`,
+              city,
+              name,
+              address: `${city}·本地公园数据`,
+              latitude: "",
+              longitude: "",
+              distance: ""
+            });
+          }
+        });
+      });
+      return results;
+    }
+
+    function buildCityParks(city) {
+      const parks = fallbackParkData[city] || [];
+      return parks.map((name) => ({
+        id: `${city}-${name}`,
+        city,
+        name,
+        address: `${city}·本地公园数据`,
+        latitude: "",
+        longitude: "",
+        distance: ""
+      }));
+    }
+
+    function mapAmapPoiToPark(poi) {
+      const parts = String(poi.location || "").split(",");
+      const cityLabel = poi.cityname || "未知城市";
+      return {
+        id: poi.id || "",
+        name: poi.name,
+        city: cityLabel,
+        address: poi.address || poi.district || "暂无地址",
+        longitude: parts[0] || "",
+        latitude: parts[1] || "",
+        distance: poi.distance || ""
+      };
+    }
+
+    async function searchAmapParksInCity(cityKeyword) {
+      const city = String(cityKeyword || "").replace(/市$/u, "").trim();
+      if (!city) return [];
+      const url = `https://restapi.amap.com/v3/place/text?key=${AMAP_KEY}&keywords=${encodeURIComponent("公园")}&city=${encodeURIComponent(city)}&types=110101|110102|110103|110104&offset=20&page=1&extensions=base&output=json`;
+      const data = await fetchJson(url);
+      if (data.status !== "1" || !Array.isArray(data.pois)) return [];
+      return data.pois.map(mapAmapPoiToPark).slice(0, 20);
+    }
+
+    async function searchAmapParksNationwide(keyword) {
+      const url = `https://restapi.amap.com/v3/place/text?key=${AMAP_KEY}&keywords=${encodeURIComponent(keyword)}&types=110101|110102|110103|110104&offset=20&page=1&extensions=base&output=json`;
+      const data = await fetchJson(url);
+      if (data.status !== "1" || !Array.isArray(data.pois)) return [];
+      return data.pois.map(mapAmapPoiToPark).slice(0, 20);
+    }
+
+    function getCheckedSetByCity(cityKey) {
+      const arr = Array.isArray(checkinRecords[cityKey]) ? checkinRecords[cityKey] : [];
+      return new Set(arr);
+    }
+
+    function isParkChecked(cityName, parkName) {
+      const cityKey = toCityStorageKey(cityName);
+      return getCheckedSetByCity(cityKey).has(parkName);
+    }
+
+    function persistCheckins() {
+      writeCache(checkinStorageKey, checkinRecords);
+    }
+
+    function updateStats() {
+      const total = currentParkItems.length;
+      let checked = 0;
+      currentParkItems.forEach((p) => {
+        const cityKey = toCityStorageKey(p.city || currentCityName);
+        if (getCheckedSetByCity(cityKey).has(p.name)) checked += 1;
+      });
+      const rate = total > 0 ? Math.round((checked / total) * 100) : 0;
+      checkedCountEl.textContent = String(checked);
+      totalCountEl.textContent = String(total);
+      rateCountEl.textContent = `${rate}%`;
+    }
+
+    function toggleCheckinByCity(cityName, parkName) {
+      const cityKey = toCityStorageKey(cityName);
+      if (!cityKey || !parkName) return false;
+      const list = Array.isArray(checkinRecords[cityKey]) ? [...checkinRecords[cityKey]] : [];
+      const idx = list.indexOf(parkName);
+      let checkedNow = false;
+      if (idx >= 0) {
+        list.splice(idx, 1);
+      } else {
+        list.push(parkName);
+        checkedNow = true;
+      }
+      checkinRecords[cityKey] = list;
+      persistCheckins();
+      return checkedNow;
+    }
+
+    function resolveParkKey(displayCityName) {
+      const normalized = normalizeCityKey(displayCityName);
+      const keys = Object.keys(fallbackParkData);
+      const exact = keys.find((key) => normalizeCityKey(key) === normalized);
+      if (exact) return exact;
+      const fuzzy = keys.find((key) => normalized.includes(normalizeCityKey(key)));
+      return fuzzy || "";
+    }
+
+    function openExternalNavigation(mode, park) {
+      if (!park || !park.longitude || !park.latitude) return "#";
+      const to = `${park.longitude},${park.latitude},${encodeURIComponent(park.name)}`;
+      return `https://uri.amap.com/navigation?to=${to}&mode=${mode}&src=parkapp&coordinate=gaode&callnative=0`;
+    }
+
+    async function getParkPhotoUrl(parkName, cityText) {
+      const query = `${parkName} ${cityText || ""} 公园`;
+      const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrnamespace=6&prop=imageinfo&iiprop=url&iiurlwidth=1000&format=json&origin=*`;
+      try {
+        const data = await fetchJson(wikiUrl);
+        if (data && data.query && data.query.pages) {
+          const pages = Object.values(data.query.pages);
+          for (const page of pages) {
+            if (page.imageinfo && page.imageinfo[0] && page.imageinfo[0].thumburl) {
+              return page.imageinfo[0].thumburl;
+            }
+          }
+        }
+      } catch (_err) {
+        // Ignore and fallback.
+      }
+      return `https://source.unsplash.com/1200x675/?${encodeURIComponent(`${parkName},park,china`)}`;
+    }
+
+    async function getAmapParkPhotoUrl(park) {
+      if (!park || !park.id) return "";
+      try {
+        const url = `https://restapi.amap.com/v3/place/detail?id=${encodeURIComponent(park.id)}&key=${AMAP_KEY}&extensions=all&output=json`;
+        const data = await fetchJson(url);
+        if (data.status !== "1" || !data.pois || !data.pois[0]) return "";
+        const photos = data.pois[0].photos || [];
+        if (photos[0] && photos[0].url) return photos[0].url;
+      } catch (_err) {
+        // Ignore and fallback.
+      }
+      return "";
+    }
+
+    async function getXhsImagesFromBackend(parkName, cityText) {
+      const keyword = `${parkName} ${cityText || ""} 公园`;
+      const cache = readCache(xhsCacheKey);
+      if (Array.isArray(cache[keyword]) && cache[keyword].length) {
+        return cache[keyword];
+      }
+      const url = `http://localhost:3000/api/xhs-images?keyword=${encodeURIComponent(keyword)}&limit=9`;
+      const data = await fetchJson(url);
+      if (!data || !Array.isArray(data.images)) return [];
+      const merged = { ...cache, [keyword]: data.images };
+      writeCache(xhsCacheKey, merged);
+      return data.images;
+    }
+
+    function formatDuration(seconds) {
+      const s = Number(seconds);
+      if (!Number.isFinite(s) || s <= 0) return "暂无";
+      const min = Math.round(s / 60);
+      if (min < 60) return `${min} 分钟`;
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return `${h} 小时 ${m} 分钟`;
+    }
+
+    function formatDistance(meters) {
+      const m = Number(meters);
+      if (!Number.isFinite(m) || m <= 0) return "暂无";
+      if (m < 1000) return `${Math.round(m)} 米`;
+      return `${(m / 1000).toFixed(1)} 公里`;
+    }
+
+    async function fetchRouteSummary(mode, origin, target) {
+      const start = `${origin.longitude},${origin.latitude}`;
+      const end = `${target.longitude},${target.latitude}`;
+
+      if (mode === "walk") {
+        const data = await fetchJson(`https://restapi.amap.com/v3/direction/walking?origin=${start}&destination=${end}&key=${AMAP_KEY}&output=json`);
+        const p = data.route && data.route.paths && data.route.paths[0];
+        return { mode: "步行", distance: p ? p.distance : "", duration: p ? p.duration : "" };
+      }
+      if (mode === "car") {
+        const data = await fetchJson(`https://restapi.amap.com/v3/direction/driving?origin=${start}&destination=${end}&key=${AMAP_KEY}&output=json`);
+        const p = data.route && data.route.paths && data.route.paths[0];
+        return { mode: "驾车", distance: p ? p.distance : "", duration: p ? p.duration : "" };
+      }
+      if (mode === "bus") {
+        const data = await fetchJson(`https://restapi.amap.com/v3/direction/transit/integrated?origin=${start}&destination=${end}&city=${encodeURIComponent(cityNameEl.textContent)}&key=${AMAP_KEY}&output=json`);
+        const t = data.route && data.route.transits && data.route.transits[0];
+        return { mode: "公交", distance: t ? t.distance : "", duration: t ? t.duration : "" };
+      }
+      const data = await fetchJson(`https://restapi.amap.com/v4/direction/bicycling?origin=${start}&destination=${end}&key=${AMAP_KEY}`);
+      const p = data.data && data.data.paths && data.data.paths[0];
+      return { mode: "自行车", distance: p ? p.distance : "", duration: p ? p.duration : "" };
+    }
+
+    async function renderRouteSummary(park) {
+      routeSummaryEl.innerHTML = '<div class="route-item">正在计算路线摘要...</div>';
+      if (!lastCoords || !park.longitude || !park.latitude) {
+        routeSummaryEl.innerHTML = '<div class="route-item">暂无路线数据</div>';
+        return;
+      }
+      const modeKeys = ["bus", "walk", "car", "ride"];
+      const rows = await Promise.all(modeKeys.map(async (m) => {
+        try {
+          return await fetchRouteSummary(m, lastCoords, park);
+        } catch (_err) {
+          return { mode: m === "bus" ? "公交" : m === "walk" ? "步行" : m === "car" ? "驾车" : "自行车", distance: "", duration: "" };
+        }
+      }));
+      routeSummaryEl.innerHTML = "";
+      rows.forEach((r) => {
+        const div = document.createElement("div");
+        div.className = "route-item";
+        div.innerHTML = `<strong>${r.mode}</strong> 距离：${formatDistance(r.distance)}，预计：${formatDuration(r.duration)}`;
+        routeSummaryEl.appendChild(div);
+      });
+    }
+
+    async function showParkDetail(park) {
+      showPage("detail");
+      detailTitleEl.textContent = park.name || "未知公园";
+      detailMetaEl.textContent = park.address || "暂无地址信息";
+      detailImageEl.src = "";
+      detailImageEl.alt = `${park.name || "公园"} 图片`;
+
+      navActionsEl.innerHTML = "";
+      const navModes = [
+        { id: "bus", label: "公共交通" },
+        { id: "walk", label: "步行" },
+        { id: "car", label: "驾车" },
+        { id: "ride", label: "自行车" }
+      ];
+
+      navModes.forEach((item) => {
+        const a = document.createElement("a");
+        a.className = "nav-btn";
+        a.href = openExternalNavigation(item.id, park);
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = item.label;
+        navActionsEl.appendChild(a);
+      });
+      const xhs = document.createElement("a");
+      xhs.className = "nav-btn";
+      xhs.href = `https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent((park.name || "") + " 公园")}`;
+      xhs.target = "_blank";
+      xhs.rel = "noopener noreferrer";
+      xhs.textContent = "小红书看实拍";
+      navActionsEl.appendChild(xhs);
+      xhsGalleryEl.innerHTML = "";
+      xhsEmptyEl.textContent = "";
+
+      const cityText = cityNameEl.textContent || "";
+      detailMetaEl.textContent = `${park.address || "暂无地址"}${park.distance ? ` · 约${(Number(park.distance) / 1000).toFixed(1)}km` : ""}`;
+      await Promise.all([
+        (async () => {
+          const cacheKey = `${park.id || park.name}|${cityText}`;
+          const photoCache = readCache(photoCacheKey);
+          let imgUrl = photoCache[cacheKey] || "";
+          if (!imgUrl) {
+            imgUrl = await getAmapParkPhotoUrl(park);
+            if (!imgUrl) {
+              imgUrl = await getParkPhotoUrl(park.name, cityText);
+            }
+            const merged = { ...photoCache, [cacheKey]: imgUrl };
+            writeCache(photoCacheKey, merged);
+          }
+          detailImageEl.onerror = () => {
+            detailImageEl.onerror = null;
+            detailImageEl.src = `https://picsum.photos/1200/675?random=${Date.now()}`;
+          };
+          detailImageEl.src = imgUrl;
+        })(),
+        renderRouteSummary(park),
+        (async () => {
+          try {
+            const images = await getXhsImagesFromBackend(park.name, cityText);
+            xhsGalleryEl.innerHTML = "";
+            if (!images.length) {
+              xhsEmptyEl.textContent = "未检索到小红书图片，请点击\"小红书看实拍\"查看。";
+              return;
+            }
+            images.forEach((item) => {
+              const a = document.createElement("a");
+              a.className = "photo-link";
+              a.href = item.postUrl || xhs.href;
+              a.target = "_blank";
+              a.rel = "noopener noreferrer";
+              const img = document.createElement("img");
+              img.loading = "lazy";
+              img.alt = item.title || `${park.name} 图片`;
+              img.src = item.imageUrl;
+              a.appendChild(img);
+              xhsGalleryEl.appendChild(a);
+            });
+          } catch (_err) {
+            xhsEmptyEl.textContent = "小红书图片接口未启动或暂时不可用。";
+          }
+        })()
+      ]);
+    }
+
+    function renderParksByNames(parkItems, options = {}) {
+      const showCityTag = !!options.showCityTag;
+      currentParkItems = Array.isArray(parkItems) ? parkItems : [];
+      parkListEl.innerHTML = "";
+      if (!parkItems || parkItems.length === 0) {
+        const li = document.createElement("li");
+        li.className = "park-item empty";
+        li.textContent = "暂无数据";
+        parkListEl.appendChild(li);
+        updateStats();
+        return;
+      }
+
+      parkItems.forEach((park, index) => {
+        const li = document.createElement("li");
+        li.className = "park-item";
+        const row = document.createElement("div");
+        row.className = "park-item-row";
+
+        const name = document.createElement("span");
+        name.className = "park-name";
+        const cityTag = showCityTag && park.city ? `（${park.city}）` : "";
+        name.textContent = `${index + 1}. ${park.name}${cityTag}`;
+
+        const button = document.createElement("button");
+        button.className = "checkin-btn";
+        button.type = "button";
+        const parkCity = park.city || currentCityName;
+        const checked = isParkChecked(parkCity, park.name);
+        button.textContent = checked ? "已打卡" : "打卡";
+        if (checked) button.classList.add("checked");
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          const checkedNow = toggleCheckinByCity(parkCity, park.name);
+          button.classList.remove("pulse");
+          void button.offsetWidth;
+          button.classList.add("pulse");
+          button.textContent = checkedNow ? "已打卡" : "打卡";
+          button.classList.toggle("checked", checkedNow);
+          updateStats();
+        });
+
+        row.appendChild(name);
+        row.appendChild(button);
+        li.appendChild(row);
+        li.addEventListener("click", () => {
+          showParkDetail(park);
+        });
+        parkListEl.appendChild(li);
+      });
+      updateStats();
+    }
+
+    function renderFallbackParksByCity(cityName) {
+      currentCityName = cityName || "未知城市";
+      currentCityDisplayName = cityName || "未知城市";
+      currentCityCheckinKey = toCityStorageKey(cityName);
+      const matchedKey = resolveParkKey(cityName);
+      const fallback = (fallbackParkData[matchedKey] || []).map((name) => ({
+        id: "",
+        name,
+        city: cityName || "未知城市",
+        address: `${cityName || "当前城市"}·示例地址`,
+        latitude: lastCoords ? lastCoords.latitude : "",
+        longitude: lastCoords ? lastCoords.longitude : "",
+        distance: ""
+      }));
+      defaultParkItems = fallback;
+      renderParksByNames(fallback);
+    }
+
+    async function applySearch() {
+      searchRequestId += 1;
+      const reqId = searchRequestId;
+      const keyword = (searchInputEl.value || "").trim();
+      if (!keyword) {
+        listTitleEl.textContent = "公园列表";
+        cityNameEl.textContent = currentCityDisplayName;
+        renderParksByNames(defaultParkItems);
+        return;
+      }
+
+      const cityMatches = searchCities(keyword);
+      if (cityMatches.length > 0) {
+        const exact = cityMatches.find((city) => city === keyword);
+        const targetCity = exact || cityMatches[0];
+        currentCityName = targetCity;
+        currentCityDisplayName = targetCity;
+        cityNameEl.textContent = currentCityDisplayName;
+        currentCityCheckinKey = toCityStorageKey(targetCity);
+        const cityParks = buildCityParks(targetCity);
+        defaultParkItems = cityParks;
+        listTitleEl.textContent = `搜索结果列表（城市：${targetCity}）`;
+        renderParksByNames(cityParks);
+        return;
+      }
+
+      const parkMatches = searchParks(keyword);
+      if (parkMatches.length > 0) {
+        listTitleEl.textContent = `搜索结果列表（关键词：${keyword}）`;
+        renderParksByNames(parkMatches, { showCityTag: true });
+        return;
+      }
+
+      listTitleEl.textContent = `搜索结果列表（关键词：${keyword}）`;
+      parkListEl.innerHTML = '<li class="park-item empty">正在搜索全国数据...</li>';
+      currentParkItems = [];
+      updateStats();
+
+      try {
+        const cityPois = await searchAmapParksInCity(keyword);
+        if (reqId !== searchRequestId) return;
+        if (cityPois.length > 0) {
+          const cityName = cityPois[0].city || keyword.replace(/市$/u, "");
+          currentCityName = cityName;
+          currentCityDisplayName = cityName;
+          cityNameEl.textContent = cityName;
+          currentCityCheckinKey = toCityStorageKey(cityName);
+          defaultParkItems = cityPois;
+          listTitleEl.textContent = `搜索结果列表（城市：${cityName}）`;
+          renderParksByNames(cityPois);
+          return;
+        }
+
+        const nationwide = await searchAmapParksNationwide(keyword);
+        if (reqId !== searchRequestId) return;
+        if (nationwide.length > 0) {
+          listTitleEl.textContent = `搜索结果列表（关键词：${keyword}）`;
+          renderParksByNames(nationwide, { showCityTag: true });
+          return;
+        }
+
+        parkListEl.innerHTML = '<li class="park-item empty">未找到相关结果</li>';
+        currentParkItems = [];
+        updateStats();
+      } catch (_err) {
+        if (reqId !== searchRequestId) return;
+        parkListEl.innerHTML = '<li class="park-item empty">搜索失败，请检查网络或稍后再试</li>';
+        currentParkItems = [];
+        updateStats();
+      }
+    }
+
+    async function fetchJson(url) {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`请求失败: ${response.status}`);
+      }
+      return response.json();
+    }
+
+    async function reverseGeocodeByAmap(latitude, longitude) {
+      const url = `https://restapi.amap.com/v3/geocode/regeo?output=json&location=${longitude},${latitude}&key=${AMAP_KEY}&extensions=base`;
+      const data = await fetchJson(url);
+
+      if (data.status !== "1" || !data.regeocode) {
+        throw new Error(data.info || "高德逆地理编码失败");
+      }
+
+      const comp = data.regeocode.addressComponent || {};
+      const province = comp.province || "";
+      const district = comp.district || "";
+      let city = "";
+      if (Array.isArray(comp.city)) {
+        city = comp.city[0] || "";
+      } else {
+        city = comp.city || "";
+      }
+      if (!city) {
+        city = province;
+      }
+
+      return {
+        city: city || "未知城市",
+        province: province || "",
+        district: district || "",
+        full: [province, city, district].filter(Boolean).join(" ") || "未知地区"
+      };
+    }
+
+    async function searchNearbyParksByAmap(latitude, longitude) {
+      const url = `https://restapi.amap.com/v3/place/around?key=${AMAP_KEY}&location=${longitude},${latitude}&keywords=公园&types=110101|110102|110103|110104&radius=8000&offset=20&page=1&extensions=base&sortrule=distance&output=json`;
+      const data = await fetchJson(url);
+
+      if (data.status !== "1") {
+        throw new Error(data.info || "高德附近搜索失败");
+      }
+
+      const pois = Array.isArray(data.pois) ? data.pois : [];
+      return pois
+        .filter((poi) => !!poi.name && !!poi.location)
+        .map((poi) => {
+          const parts = String(poi.location).split(",");
+          return {
+            id: poi.id || "",
+            name: poi.name,
+            address: poi.address || poi.pname || "暂无地址",
+            longitude: parts[0] || "",
+            latitude: parts[1] || "",
+            distance: poi.distance || ""
+          };
+        })
+        .slice(0, 12);
+    }
+
+    async function handleSuccess(position) {
+      const { latitude, longitude } = position.coords;
+      lastCoords = { latitude, longitude };
+      let parsedCity = "未知城市";
+      try {
+        setStatus("loading", "定位成功，正在解析城市和区县...");
+        const address = await reverseGeocodeByAmap(latitude, longitude);
+        parsedCity = address.city || parsedCity;
+        currentCityName = parsedCity;
+        currentCityDisplayName = address.full;
+        currentCityCheckinKey = toCityStorageKey(parsedCity);
+        cityNameEl.textContent = address.full;
+
+        setStatus("loading", "正在查询附近公园...");
+        const parks = await searchNearbyParksByAmap(latitude, longitude);
+        const withCity = parks.map((park) => ({ ...park, city: parsedCity }));
+        defaultParkItems = withCity;
+        renderParksByNames(withCity);
+        if ((searchInputEl.value || "").trim()) {
+          applySearch();
+        }
+        showPage("list");
+        setStatus("", `定位成功：${address.full}（${latitude.toFixed(4)}, ${longitude.toFixed(4)}）`);
+      } catch (err) {
+        const msg = err && err.message ? err.message : "接口调用失败";
+        if (cityNameEl.textContent === "获取中..." || cityNameEl.textContent === "未获取") {
+          cityNameEl.textContent = parsedCity;
+        }
+        setStatus("error", `在线查询失败：${msg}，已切换本地兜底数据`);
+        renderFallbackParksByCity(parsedCity);
+        if ((searchInputEl.value || "").trim()) {
+          applySearch();
+        }
+        showPage("list");
+      } finally {
+        locateBtn.disabled = false;
+      }
+    }
+
+    function handleError(error) {
+      const map = {
+        1: "用户拒绝了定位请求",
+        2: "无法获取位置信息",
+        3: "定位超时，请重试"
+      };
+      const message = map[error.code] || "定位失败，请检查浏览器权限";
+
+      cityNameEl.textContent = "定位失败";
+      setStatus("error", message);
+      parkListEl.innerHTML = '<li class="park-item empty">暂无数据</li>';
+      currentParkItems = [];
+      defaultParkItems = [];
+      updateStats();
+      locateBtn.disabled = false;
+    }
+
+    locateBtn.addEventListener("click", () => {
+      if (!("geolocation" in navigator)) {
+        setStatus("error", "当前浏览器不支持定位功能");
+        cityNameEl.textContent = "不支持";
+        parkListEl.innerHTML = '<li class="park-item empty">暂无数据</li>';
+        currentParkItems = [];
+        defaultParkItems = [];
+        updateStats();
+        return;
+      }
+
+      locateBtn.disabled = true;
+      setStatus("loading", "正在获取定位，请稍候...");
+      cityNameEl.textContent = "获取中...";
+      parkListEl.innerHTML = '<li class="park-item empty">正在加载公园列表...</li>';
+      currentParkItems = [];
+      defaultParkItems = [];
+      updateStats();
+
+      navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      });
+    });
+
+    searchInputEl.addEventListener("input", () => {
+      if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        applySearch();
+      }, 250);
+    });
+
+    searchBtnEl.addEventListener("click", () => {
+      applySearch();
+    });
+
+    backBtnEl.addEventListener("click", () => {
+      showPage("list");
+    });
+
+    currentCityCheckinKey = toCityStorageKey("unknown");
+    updateStats();
+  </script>
+</body>
+</html>
